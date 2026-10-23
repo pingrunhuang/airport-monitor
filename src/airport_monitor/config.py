@@ -86,6 +86,10 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    ui_enabled: bool = True
+    ui_host: str = "127.0.0.1"
+    ui_port: int = 8787
+
     @field_validator(*_OPTIONAL_STRINGS, mode="before")
     @classmethod
     def _blank_is_unset(cls, value: object) -> object:
@@ -101,6 +105,21 @@ class Settings(BaseSettings):
         if not code:
             raise ValueError("AIRPORT_ICAO is required")
         return code
+
+    @field_validator("ui_host")
+    @classmethod
+    def _ui_host(cls, value: str) -> str:
+        host = value.strip()
+        if not host or any(char.isspace() for char in host):
+            raise ValueError("UI_HOST must be a hostname or IP address")
+        return host
+
+    @field_validator("ui_port")
+    @classmethod
+    def _ui_port(cls, value: int) -> int:
+        if not 1 <= value <= 65535:
+            raise ValueError("UI_PORT must be between 1 and 65535")
+        return value
 
     @field_validator("log_level")
     @classmethod

@@ -5,6 +5,7 @@ from __future__ import annotations
 from airport_monitor.airports import Airport
 from airport_monitor.alert import AlertDispatcher
 from airport_monitor.ingest import OpenSkyError, OpenSkyRateLimitError
+from airport_monitor.live import LiveBoard
 from airport_monitor.loop import run_monitor
 from airport_monitor.models import AircraftSample, BoundingBox, Snapshot
 from airport_monitor.state_machine import GroundStateTracker
@@ -133,6 +134,84 @@ def test_each_selected_airport_is_polled_once_per_cycle() -> None:
     )
     assert cycles == 1
     assert client.calls == 2
+
+
+def test_board_receives_tracks_and_events_after_alerts() -> None:
+    client = Scripted(
+        [
+            snap(True, 100),
+            snap(True, 110),
+            snap(False, 120),
+            snap(False, 130),
+        ]
+    )
+    sink = Collect()
+    board = LiveBoard()
+    cycles = run_monitor(
+        airports=(_airport(),),
+        client=client,
+        trackers={"ZGSZ": GroundStateTracker("ZGSZ", debounce_samples=2)},
+        dispatcher=AlertDispatcher([sink]),  # type: ignore[list-item]
+        poll_interval_seconds=15,
+        sleep=lambda _seconds: None,
+        clock=lambda: 1_000.0,
+        max_cycles=4,
+        board=board,
+    )
+    body = board.status(now=1_000.0)
+    assert cycles == 4
+    assert len(sink.events) == 1
+    assert sink.events[0].event == "takeoff"  # type: ignore[attr-defined]
+    assert body["poll_time"] == 130
+    assert body["credits_remaining"] == 100
+    assert body["name"] == "Shenzhen Bao'an International Airport"
+    assert body["counts"]["events_since_start"] == 1  # type: ignore[index]
+    assert body["events"][0]["event"] == "takeoff"  # type: ignore[index]
+    assert body["tracks"][0]["state"] == "airborne"  # type: ignore[index]
+    assert body["tracks"][0]["callsign"] == "CSZ9001"  # type: ignore[index]
+
+
+def test_a_later_failure_keeps_tracks_already_on_the_board() -> None:
+    board = LiveBoard()
+    client = Scripted(
+        [snap(True, 100)],
+        failures={2: OpenSkyError("boom", status_code=500)},
+    )
+    run_monitor(
+        airports=(_airport(),),
+        client=client,
+        trackers={"ZGSZ": GroundStateTracker("ZGSZ", debounce_samples=1)},
+        dispatcher=AlertDispatcher([]),
+        poll_interval_seconds=15,
+        sleep=lambda _seconds: None,
+        clock=lambda: 50.0,
+        max_cycles=2,
+        board=board,
+    )
+    body = board.status(now=50.0)
+    assert body["last_error"] == "boom"
+    assert body["poll_time"] == 100
+    assert body["tracks"][0]["icao24"] == "780abc"  # type: ignore[index]
+    assert body["tracks"][0]["state"] == "on_ground"  # type: ignore[index]
+
+
+def test_rate_limit_is_visible_on_the_board() -> None:
+    board = LiveBoard()
+    board.register("ZGSZ", name="Shenzhen Bao'an International Airport")
+    client = Scripted([], failures={1: OpenSkyRateLimitError("limited", retry_after=5)})
+    run_monitor(
+        airports=(_airport(),),
+        client=client,
+        trackers={"ZGSZ": GroundStateTracker("ZGSZ")},
+        dispatcher=AlertDispatcher([]),
+        poll_interval_seconds=15,
+        max_cycles=1,
+        board=board,
+    )
+    body = board.status()
+    assert body["last_error"] == "OpenSky rate limit"
+    assert body["tracks"] == []
+    assert body["name"] == "Shenzhen Bao'an International Airport"
 
 
 def test_expire_removes_aircraft_missing_from_this_poll() -> None:

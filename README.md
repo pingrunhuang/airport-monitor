@@ -78,6 +78,10 @@ Leave it running if you want a takeoff or a landing. A failed poll (timeout,
 HTTP 403, HTTP 5xx) is logged in one line and the loop waits for the next
 interval.
 
+While that process is running, open <http://127.0.0.1:8787> for the live
+board. `--once` leaves the page up after the poll until Ctrl-C. See
+[Live UI](#live-ui).
+
 Logs go to stderr. A quiet poll looks like:
 
 ```text
@@ -91,6 +95,54 @@ An alert:
 ```
 
 Set `LOG_LEVEL=DEBUG` to see each track's confirmed and pending `on_ground` value.
+
+## Live UI
+
+Open <http://127.0.0.1:8787> in a browser on the same machine. The monitor
+serves that page itself; there is no second process. The default bind is
+`127.0.0.1:8787`. Set `UI_ENABLED=0` to poll without it. With the page
+enabled, `--once` still polls a single cycle and then keeps the page up
+until Ctrl-C, so you can inspect that snapshot. With `UI_ENABLED=0`,
+`--once` exits after the poll as before.
+
+The board is one research-style page, in the spirit of an OpenSky table
+rather than a consumer flight tracker. Nothing on it is an OpenSky logo.
+
+- A midnight-navy header (`#0B1F33`) shows the airport ICAO in monospace,
+  the title "Airport monitor", the airport name, the OpenSky poll time,
+  how long ago that poll was, and credits remaining when OpenSky sent them.
+- A white strip under the header counts tracked aircraft, how many are on
+  the ground, how many are airborne, how many are still waiting for a
+  baseline ("pending"), and how many takeoff or landing events fall on
+  today's local date. A smaller line under the events count is the total
+  since this process started.
+- The main table is the live tracks: `icao24`, callsign (an em dash when
+  OpenSky has none), a state chip, age since the track was seen, and
+  latitude, longitude, barometric altitude in metres, and ground speed in
+  metres per second when the last sample had them. On ground is a muted
+  chip, airborne is sky blue, pending is a quiet sand color. Rows are
+  compact, with a thin border, a faint zebra, and a sky-blue hover. Click
+  a row to hold that sky-blue selection.
+- A second table lists the newest 50 alert events: time, takeoff or
+  landing, `icao24`, callsign.
+- The page background is pale gray (`#F4F7FA`). It refetches `GET /api/status`
+  on its own, every 5–10 seconds (the poll interval when that already sits
+  in the range; otherwise 10 seconds, or 5 if the interval is faster).
+  There is no map and no websocket.
+- The footer credits data from
+  [OpenSky Network](https://opensky-network.org/) and says this is not an
+  air traffic control feed.
+
+`GET /api/status` returns JSON: `airport`, `poll_time`, `counts`, `tracks`,
+and `events`. `?airport=ZGSZ` selects one field when more than one is
+registered later. The host has no authentication. Do not point `UI_HOST`
+at a public interface unless something else is in front of it.
+
+| Variable | Default | Role |
+| --- | --- | --- |
+| `UI_ENABLED` | `1` | `0` does not start the page |
+| `UI_HOST` | `127.0.0.1` | Bind address |
+| `UI_PORT` | `8787` | Bind port |
 
 ## Alerts
 
@@ -207,6 +259,9 @@ Empty values count as unset.
 | `LOG_LEVEL` | `INFO` | loguru level |
 | `HTTP_TIMEOUT_SECONDS` | `20` | OpenSky and webhook HTTP timeout |
 | `OPENSKY_ALLOW_FAST_POLL` | false | Test-only escape hatch for a sub-10s interval |
+| `UI_ENABLED` | `1` | `0` skips the local board |
+| `UI_HOST` | `127.0.0.1` | Board bind address |
+| `UI_PORT` | `8787` | Board port. Open `http://127.0.0.1:8787` |
 
 `--interval` overrides `POLL_INTERVAL_SECONDS` for one process.
 
@@ -218,7 +273,9 @@ Empty values count as unset.
 | `airport_monitor.state_machine` | Per-`icao24` debounce and takeoff/landing edges |
 | `airport_monitor.alert` | Webhook POST and SMTP stub |
 | `airport_monitor.airports` | ZGSZ catalog and the phase-2 extension point |
-| `airport_monitor.loop` | Poll cycle |
+| `airport_monitor.loop` | Poll cycle. Updates the live board after alerts |
+| `airport_monitor.live` | In-process tracks, last positions, and recent events |
+| `airport_monitor.ui` | Local page and `GET /api/status` |
 | `airport_monitor.config` | Environment settings |
 
 The loop already iterates a list of airports and keeps one tracker per ICAO
