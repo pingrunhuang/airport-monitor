@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN" data-default-lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Airport monitor</title>
+  <title data-i18n="title">机场监视</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect fill='%230B1F33' width='16' height='16'/%3E%3Crect fill='%233B82C4' y='13' width='16' height='3'/%3E%3C/svg%3E">
   <style>
     :root {
@@ -22,7 +22,7 @@
       margin: 0;
       background: var(--paper);
       color: var(--ink);
-      font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", sans-serif;
       font-size: 14px;
       line-height: 1.4;
     }
@@ -46,7 +46,33 @@
     }
     .title { font-size: 15px; font-weight: 500; color: #C5D4E4; }
     .place { margin: 3px 0 0; color: #8FA4B8; font-size: 12px; }
-    .poll { text-align: right; }
+    .poll {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+    }
+    .lang {
+      display: inline-flex;
+      margin-bottom: 6px;
+      border: 1px solid #34506A;
+    }
+    .lang button {
+      margin: 0;
+      padding: 1px 8px 2px;
+      border: 0;
+      background: transparent;
+      color: #9FB4C8;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      line-height: 1.45;
+      cursor: pointer;
+    }
+    .lang button + button { border-left: 1px solid #34506A; }
+    .lang button.is-active { background: var(--sky); color: #fff; }
+    .lang button:focus-visible { outline: 2px solid var(--sky-2); outline-offset: 1px; }
     .live {
       display: inline-flex;
       align-items: center;
@@ -206,7 +232,7 @@
     }
     @media (max-width: 720px) {
       .top-inner { flex-direction: column; align-items: flex-start; }
-      .poll { text-align: left; }
+      .poll { align-items: flex-start; text-align: left; }
       .stats-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .stat { border-bottom: 1px solid #E3EAF1; }
     }
@@ -218,13 +244,17 @@
       <div>
         <div class="brand">
           <h1 class="icao" id="icao">——</h1>
-          <span class="title">Airport monitor</span>
+          <span class="title" data-i18n="title">机场监视</span>
         </div>
         <p class="place" id="place"></p>
       </div>
       <div class="poll">
-        <div class="live"><span class="live-dot" id="live-dot"></span><span id="live-label">Idle</span></div>
-        <div class="poll-line" id="poll-line">Waiting for the first poll</div>
+        <div class="lang" role="group" data-i18n-aria="langLabel" aria-label="语言">
+          <button type="button" id="lang-zh" class="is-active" aria-pressed="true">中文</button>
+          <button type="button" id="lang-en" aria-pressed="false">EN</button>
+        </div>
+        <div class="live"><span class="live-dot" id="live-dot"></span><span id="live-label" data-i18n="idle">待命</span></div>
+        <div class="poll-line" id="poll-line" data-i18n="waitingPoll">等待首次轮询</div>
       </div>
     </div>
   </header>
@@ -232,78 +262,78 @@
   <div class="banner-wrap" id="banner-wrap" hidden>
     <p class="banner" id="banner"></p>
   </div>
-  <section class="stats" aria-label="Counts">
+  <section class="stats" data-i18n-aria="counts" aria-label="数量">
     <div class="stats-inner">
       <div class="stat">
         <div class="stat-value" id="count-tracked">0</div>
-        <div class="stat-label">Tracked</div>
+        <div class="stat-label" data-i18n="tracked">跟踪</div>
         <div class="stat-note" id="note-tracked"></div>
       </div>
       <div class="stat">
         <div class="stat-value" id="count-ground">0</div>
-        <div class="stat-label">On ground</div>
+        <div class="stat-label" data-i18n="onGround">地面</div>
         <div class="stat-note"></div>
       </div>
       <div class="stat stat-air">
         <div class="stat-value" id="count-air">0</div>
-        <div class="stat-label">Airborne</div>
+        <div class="stat-label" data-i18n="airborne">空中</div>
         <div class="stat-note"></div>
       </div>
       <div class="stat">
         <div class="stat-value" id="count-pending">0</div>
-        <div class="stat-label">Pending</div>
-        <div class="stat-note">Not baselined</div>
+        <div class="stat-label" data-i18n="pending">待基线</div>
+        <div class="stat-note" data-i18n="notBaselined">未建立基线</div>
       </div>
       <div class="stat">
         <div class="stat-value" id="count-events">0</div>
-        <div class="stat-label">Events today</div>
-        <div class="stat-note" id="note-events">0 since start</div>
+        <div class="stat-label" data-i18n="eventsToday">今日事件</div>
+        <div class="stat-note" id="note-events">自启动以来 0</div>
       </div>
     </div>
   </section>
   <main>
     <section class="panel">
       <div class="panel-head">
-        <h2>Tracks</h2>
-        <p id="track-note">Debounced ground state. Age is time since the track was seen.</p>
+        <h2 data-i18n="tracks">航迹</h2>
+        <p id="track-note" data-i18n="trackNote">地面状态已去抖。时长为距上次观测的时间。点击一行可保持选中。</p>
       </div>
       <div class="table-wrap">
         <table class="board">
           <thead>
             <tr>
-              <th>ICAO24</th>
-              <th>Callsign</th>
-              <th>State</th>
-              <th class="num">Age</th>
-              <th class="num">Lat</th>
-              <th class="num">Lon</th>
-              <th class="num" title="Barometric altitude, metres">Alt m</th>
-              <th class="num" title="Ground speed, metres per second">GS m/s</th>
+              <th data-i18n="colIcao">ICAO24</th>
+              <th data-i18n="colCallsign">呼号</th>
+              <th data-i18n="colState">状态</th>
+              <th class="num" data-i18n="colAge">时长</th>
+              <th class="num" data-i18n="colLat">纬度</th>
+              <th class="num" data-i18n="colLon">经度</th>
+              <th class="num" data-i18n="colAlt" data-i18n-title="altTitle" title="气压高度，米">高度（米）</th>
+              <th class="num" data-i18n="colGs" data-i18n-title="gsTitle" title="地速，米/秒">地速（米/秒）</th>
             </tr>
           </thead>
           <tbody id="track-body">
-            <tr><td class="empty" colspan="8">Waiting for the first poll.</td></tr>
+            <tr><td class="empty" colspan="8" data-i18n="waitingPollSentence">等待首次轮询。</td></tr>
           </tbody>
         </table>
       </div>
     </section>
     <section class="panel">
       <div class="panel-head">
-        <h2>Recent events</h2>
-        <p>Newest first. Last 50 takeoffs and landings since this process started.</p>
+        <h2 data-i18n="recent">近期事件</h2>
+        <p data-i18n="recentNote">最新在前。本进程启动以来最近 50 次起飞与降落。</p>
       </div>
       <div class="table-wrap">
         <table class="board">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Event</th>
-              <th>ICAO24</th>
-              <th>Callsign</th>
+              <th data-i18n="colTime">时间</th>
+              <th data-i18n="colEvent">事件</th>
+              <th data-i18n="colIcao">ICAO24</th>
+              <th data-i18n="colCallsign">呼号</th>
             </tr>
           </thead>
           <tbody id="event-body">
-            <tr><td class="empty" colspan="4">No takeoff or landing yet.</td></tr>
+            <tr><td class="empty" colspan="4" data-i18n="emptyEvents">尚无起飞或降落。</td></tr>
           </tbody>
         </table>
       </div>
@@ -311,16 +341,119 @@
   </main>
   <footer>
     <p id="started"></p>
-    <p>Data from <a href="https://opensky-network.org/">OpenSky Network</a>. Not an air traffic control feed.</p>
+    <p><span data-i18n="footerBefore">数据来自 </span><a href="https://opensky-network.org/">OpenSky Network</a><span data-i18n="footerAfter">。并非空中交通管制数据。</span></p>
   </footer>
-  <noscript><p class="noscript">This board needs JavaScript to load tracks from /api/status.</p></noscript>
+  <noscript><p class="noscript">此看板需要 JavaScript 才能从 /api/status 加载航迹。</p></noscript>
   <script>
     (function () {
+      var STRINGS = {
+        "zh-CN": {
+          title: "机场监视",
+          airportFallback: "机场",
+          docTitle: "{code} · 机场监视",
+          idle: "待命",
+          live: "实时",
+          stale: "中断",
+          waitingPoll: "等待首次轮询",
+          waitingPollSentence: "等待首次轮询。",
+          tracked: "跟踪",
+          onGround: "地面",
+          airborne: "空中",
+          pending: "待基线",
+          eventsToday: "今日事件",
+          notBaselined: "未建立基线",
+          sinceStart: "自启动以来 {n}",
+          inLastPoll: "上次轮询 {n} 架",
+          tracks: "航迹",
+          trackNote: "地面状态已去抖。时长为距上次观测的时间。点击一行可保持选中。",
+          trackNoteRefresh: "地面状态已去抖。本页每 {n} 秒刷新一次。点击一行可保持选中。",
+          colIcao: "ICAO24",
+          colCallsign: "呼号",
+          colState: "状态",
+          colAge: "时长",
+          colLat: "纬度",
+          colLon: "经度",
+          colAlt: "高度（米）",
+          colGs: "地速（米/秒）",
+          altTitle: "气压高度，米",
+          gsTitle: "地速，米/秒",
+          emptyTracks: "当前没有跟踪的航空器。",
+          recent: "近期事件",
+          recentNote: "最新在前。本进程启动以来最近 50 次起飞与降落。",
+          colTime: "时间",
+          colEvent: "事件",
+          emptyEvents: "尚无起飞或降落。",
+          footerBefore: "数据来自 ",
+          footerAfter: "。并非空中交通管制数据。",
+          started: "本进程启动于 {time}。",
+          pollOpenSky: "OpenSky {clock}",
+          ago: "{age} 前",
+          credits: "额度 {n}",
+          pollFailed: "上次轮询失败：{error}",
+          refreshFailed: "看板无法刷新，正在重试。",
+          counts: "数量",
+          langLabel: "语言",
+          state: { on_ground: "地面", airborne: "空中", pending: "待基线" },
+          event: { takeoff: "起飞", landing: "降落" }
+        },
+        en: {
+          title: "Airport monitor",
+          airportFallback: "Airport",
+          docTitle: "{code} · Airport monitor",
+          idle: "Idle",
+          live: "Live",
+          stale: "Stale",
+          waitingPoll: "Waiting for the first poll",
+          waitingPollSentence: "Waiting for the first poll.",
+          tracked: "Tracked",
+          onGround: "On ground",
+          airborne: "Airborne",
+          pending: "Pending",
+          eventsToday: "Events today",
+          notBaselined: "Not baselined",
+          sinceStart: "{n} since start",
+          inLastPoll: "{n} in the last poll",
+          tracks: "Tracks",
+          trackNote: "Debounced ground state. Age is time since the track was seen. Click a row to hold the selection.",
+          trackNoteRefresh: "Debounced ground state. This page refetches every {n}s. Click a row to hold the selection.",
+          colIcao: "ICAO24",
+          colCallsign: "Callsign",
+          colState: "State",
+          colAge: "Age",
+          colLat: "Lat",
+          colLon: "Lon",
+          colAlt: "Alt m",
+          colGs: "GS m/s",
+          altTitle: "Barometric altitude, metres",
+          gsTitle: "Ground speed, metres per second",
+          emptyTracks: "No aircraft tracked.",
+          recent: "Recent events",
+          recentNote: "Newest first. Last 50 takeoffs and landings since this process started.",
+          colTime: "Time",
+          colEvent: "Event",
+          emptyEvents: "No takeoff or landing yet.",
+          footerBefore: "Data from ",
+          footerAfter: ". Not an air traffic control feed.",
+          started: "This process started {time}.",
+          pollOpenSky: "OpenSky {clock}",
+          ago: "{age} ago",
+          credits: "credits {n}",
+          pollFailed: "Last poll failed: {error}",
+          refreshFailed: "The board could not refresh. Retrying.",
+          counts: "Counts",
+          langLabel: "Language",
+          state: { on_ground: "On ground", airborne: "Airborne", pending: "Pending" },
+          event: { takeoff: "Takeoff", landing: "Landing" }
+        }
+      };
+      var STORAGE_KEY = "airport-monitor-lang";
+      var STATE_ORDER = { airborne: 0, pending: 1, on_ground: 2 };
       var selected = null;
       var timer = null;
-      var STATE_ORDER = { airborne: 0, pending: 1, on_ground: 2 };
-      var STATE_LABEL = { on_ground: "On ground", airborne: "Airborne", pending: "Pending" };
-      var EVENT_LABEL = { takeoff: "Takeoff", landing: "Landing" };
+      var lastData = null;
+      var lang = "zh-CN";
+      var bannerKey = null;
+      var bannerVars = null;
 
       function $(id) { return document.getElementById(id); }
       function text(id, value) {
@@ -329,6 +462,71 @@
       }
       function dash() { return "\u2014"; }
       function pad(value) { return String(value).padStart(2, "0"); }
+      function localeTag() { return lang === "en" ? "en" : "zh-CN"; }
+
+      function t(key, vars) {
+        var pack = STRINGS[lang] || STRINGS["zh-CN"];
+        var value = pack[key];
+        if (typeof value !== "string") {
+          var fallback = STRINGS["zh-CN"][key];
+          value = typeof fallback === "string" ? fallback : key;
+        }
+        if (vars) {
+          value = String(value).replace(/\{(\w+)\}/g, function (_match, name) {
+            return vars[name] == null ? "" : String(vars[name]);
+          });
+        }
+        return value;
+      }
+
+      function label(group, kind) {
+        var pack = STRINGS[lang] || STRINGS["zh-CN"];
+        var table = pack[group];
+        if (table && typeof table[kind] === "string") return table[kind];
+        var fallback = STRINGS["zh-CN"][group];
+        if (fallback && typeof fallback[kind] === "string") return fallback[kind];
+        return kind;
+      }
+
+      function normalizeLang(value) {
+        if (!value) return null;
+        var token = String(value).trim().toLowerCase().replace(/_/g, "-");
+        if (token === "en" || token === "en-us" || token === "en-gb") return "en";
+        if (token === "zh" || token === "zh-cn" || token === "zh-hans") return "zh-CN";
+        return null;
+      }
+
+      function initialLang() {
+        var params = new URLSearchParams(window.location.search);
+        var fromQuery = normalizeLang(params.get("lang"));
+        if (fromQuery) {
+          try { localStorage.setItem(STORAGE_KEY, fromQuery); } catch (err) { /* private mode */ }
+          return fromQuery;
+        }
+        try {
+          var stored = normalizeLang(localStorage.getItem(STORAGE_KEY));
+          if (stored) return stored;
+        } catch (err) { /* private mode */ }
+        return normalizeLang(document.documentElement.getAttribute("data-default-lang")) || "zh-CN";
+      }
+
+      function applyStatic() {
+        document.documentElement.lang = lang;
+        document.querySelectorAll("[data-i18n]").forEach(function (node) {
+          node.textContent = t(node.getAttribute("data-i18n"));
+        });
+        document.querySelectorAll("[data-i18n-title]").forEach(function (node) {
+          node.title = t(node.getAttribute("data-i18n-title"));
+        });
+        document.querySelectorAll("[data-i18n-aria]").forEach(function (node) {
+          node.setAttribute("aria-label", t(node.getAttribute("data-i18n-aria")));
+        });
+        var zhOn = lang !== "en";
+        $("lang-zh").classList.toggle("is-active", zhOn);
+        $("lang-en").classList.toggle("is-active", !zhOn);
+        $("lang-zh").setAttribute("aria-pressed", zhOn ? "true" : "false");
+        $("lang-en").setAttribute("aria-pressed", zhOn ? "false" : "true");
+      }
 
       function formatAge(seconds) {
         if (seconds == null || !isFinite(seconds)) return dash();
@@ -374,10 +572,10 @@
         return node;
       }
 
-      function chip(kind, label) {
+      function chip(kind, labelText) {
         var node = document.createElement("span");
         node.className = "chip chip-" + kind;
-        node.textContent = label;
+        node.textContent = labelText;
         return node;
       }
 
@@ -392,6 +590,20 @@
         wrap.hidden = false;
       }
 
+      function showBanner(key, vars) {
+        bannerKey = key || null;
+        bannerVars = vars || null;
+        setBanner(key ? t(key, bannerVars) : "");
+      }
+
+      function setLive(key) {
+        var dot = $("live-dot");
+        dot.classList.remove("is-live", "is-stale");
+        if (key === "live") dot.classList.add("is-live");
+        if (key === "stale") dot.classList.add("is-stale");
+        text("live-label", t(key));
+      }
+
       function renderTracks(tracks) {
         var body = $("track-body");
         body.replaceChildren();
@@ -400,7 +612,7 @@
           var td = document.createElement("td");
           td.colSpan = 8;
           td.className = "empty";
-          td.textContent = "No aircraft tracked.";
+          td.textContent = t("emptyTracks");
           empty.appendChild(td);
           body.appendChild(empty);
           return;
@@ -413,7 +625,7 @@
           row.appendChild(cell(track.callsign, "mono"));
           var stateCell = document.createElement("td");
           var kind = track.state || "pending";
-          stateCell.appendChild(chip(kind, STATE_LABEL[kind] || kind));
+          stateCell.appendChild(chip(kind, label("state", kind)));
           row.appendChild(stateCell);
           row.appendChild(cell(formatAge(track.last_seen_age), "num mono"));
           row.appendChild(cell(formatFixed(track.latitude, 4), "num mono"));
@@ -436,7 +648,7 @@
           var td = document.createElement("td");
           td.colSpan = 4;
           td.className = "empty";
-          td.textContent = "No takeoff or landing yet.";
+          td.textContent = t("emptyEvents");
           empty.appendChild(td);
           body.appendChild(empty);
           return;
@@ -445,12 +657,12 @@
           var row = document.createElement("tr");
           var time = cell(formatEventTime(event.ts), "mono");
           if (event.ts != null) {
-            time.title = new Date(event.ts * 1000).toLocaleString() + " \u00b7 unix " + event.ts;
+            time.title = new Date(event.ts * 1000).toLocaleString(localeTag()) + " \u00b7 unix " + event.ts;
           }
           row.appendChild(time);
           var kindCell = document.createElement("td");
           var kind = event.event || "";
-          kindCell.appendChild(chip(kind, EVENT_LABEL[kind] || kind));
+          kindCell.appendChild(chip(kind, label("event", kind)));
           row.appendChild(kindCell);
           row.appendChild(cell(event.icao24, "mono"));
           row.appendChild(cell(event.callsign, "mono"));
@@ -459,60 +671,59 @@
       }
 
       function render(data) {
+        lastData = data;
         var counts = data.counts || {};
-        var code = data.airport || dash();
-        text("icao", code);
+        text("icao", data.airport || dash());
         text("place", data.name || "");
-        document.title = (data.airport || "Airport") + " \u00b7 Airport monitor";
+        document.title = t("docTitle", { code: data.airport || t("airportFallback") });
         text("count-tracked", String(counts.tracked || 0));
         text("count-ground", String(counts.on_ground || 0));
         text("count-air", String(counts.airborne || 0));
         text("count-pending", String(counts.pending || 0));
         text("count-events", String(counts.events_today || 0));
-        text("note-events", String(counts.events_since_start || 0) + " since start");
+        text("note-events", t("sinceStart", { n: counts.events_since_start || 0 }));
         var trackedNote = "";
         if (data.poll_time != null && data.aircraft_count !== counts.tracked) {
-          trackedNote = String(data.aircraft_count) + " in the last poll";
+          trackedNote = t("inLastPoll", { n: data.aircraft_count });
         }
         text("note-tracked", trackedNote);
 
-        var poll = "Waiting for the first poll";
+        var poll = t("waitingPoll");
         if (data.poll_time != null) {
-          poll = "OpenSky " + formatClock(data.poll_time);
+          poll = t("pollOpenSky", { clock: formatClock(data.poll_time) });
           if (data.polled_at != null) {
-            poll += " \u00b7 " + formatAge(Date.now() / 1000 - data.polled_at) + " ago";
+            poll += " \u00b7 " + t("ago", { age: formatAge(Date.now() / 1000 - data.polled_at) });
           }
           if (data.credits_remaining != null) {
-            poll += " \u00b7 credits " + data.credits_remaining;
+            poll += " \u00b7 " + t("credits", { n: data.credits_remaining });
           }
         }
         var pollNode = $("poll-line");
         pollNode.textContent = poll;
         if (data.poll_time != null) {
           pollNode.title = "OpenSky unix " + data.poll_time;
+        } else {
+          pollNode.removeAttribute("title");
         }
 
-        var dot = $("live-dot");
-        dot.classList.remove("is-live", "is-stale");
         if (data.last_error) {
-          dot.classList.add("is-stale");
-          text("live-label", "Stale");
-          setBanner("Last poll failed: " + data.last_error);
+          setLive("stale");
+          showBanner("pollFailed", { error: data.last_error });
         } else if (data.poll_time == null) {
-          text("live-label", "Idle");
-          setBanner("");
+          setLive("idle");
+          showBanner(null);
         } else {
-          dot.classList.add("is-live");
-          text("live-label", "Live");
-          setBanner("");
+          setLive("live");
+          showBanner(null);
         }
 
         if (data.started_at) {
-          text("started", "This process started " + new Date(data.started_at * 1000).toLocaleString() + ".");
+          var startedAt = new Date(data.started_at * 1000).toLocaleString(localeTag());
+          text("started", t("started", { time: startedAt }));
         }
         var seconds = Number(data.refresh_seconds);
         if (isFinite(seconds) && seconds > 0) {
-          text("track-note", "Debounced ground state. This page refetches every " + seconds + "s.");
+          text("track-note", t("trackNoteRefresh", { n: seconds }));
         }
 
         var tracks = Array.isArray(data.tracks) ? data.tracks.slice() : [];
@@ -525,6 +736,21 @@
         });
         renderTracks(tracks);
         renderEvents(Array.isArray(data.events) ? data.events : []);
+      }
+
+      function setLang(next, persist) {
+        var keepRefreshError = bannerKey === "refreshFailed";
+        lang = next === "en" ? "en" : "zh-CN";
+        if (persist) {
+          try { localStorage.setItem(STORAGE_KEY, lang); } catch (err) { /* private mode */ }
+        }
+        applyStatic();
+        if (lastData) render(lastData);
+        else text("note-events", t("sinceStart", { n: $("count-events").textContent || "0" }));
+        if (keepRefreshError) {
+          setLive("stale");
+          showBanner("refreshFailed");
+        }
       }
 
       function schedule(seconds) {
@@ -544,14 +770,15 @@
             schedule(isFinite(seconds) && seconds > 0 ? seconds : 5);
           })
           .catch(function () {
-            var dot = $("live-dot");
-            dot.classList.remove("is-live");
-            dot.classList.add("is-stale");
-            text("live-label", "Stale");
-            setBanner("The board could not refresh. Retrying.");
+            setLive("stale");
+            showBanner("refreshFailed");
             schedule(5);
           });
       }
+
+      $("lang-zh").addEventListener("click", function () { setLang("zh-CN", true); });
+      $("lang-en").addEventListener("click", function () { setLang("en", true); });
+      setLang(initialLang(), false);
 
       if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", tick);

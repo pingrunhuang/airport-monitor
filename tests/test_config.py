@@ -68,6 +68,17 @@ def test_ui_defaults_and_can_be_disabled(clean_env: None, monkeypatch: pytest.Mo
         Settings(_env_file=None, ui_host=" ")
 
 
+def test_ui_lang_defaults_to_zh_and_accepts_en(clean_env: None) -> None:
+    assert Settings(_env_file=None).ui_lang == "zh"
+    assert Settings(_env_file=None, ui_lang="en").ui_lang == "en"
+    assert Settings(_env_file=None, ui_lang="zh-CN").ui_lang == "zh"
+    assert Settings(_env_file=None, ui_lang="zh_CN").ui_lang == "zh"
+    assert Settings(_env_file=None, ui_lang="en-US").ui_lang == "en"
+    assert Settings(_env_file=None, ui_lang="  ").ui_lang == "zh"
+    with pytest.raises(ValidationError, match="UI_LANG"):
+        Settings(_env_file=None, ui_lang="fr")
+
+
 def test_env_example_has_placeholders_and_no_secrets() -> None:
     text = Path(".env.example").read_text()
     assert "BEGIN PRIVATE" not in text
@@ -91,6 +102,7 @@ def test_env_example_has_placeholders_and_no_secrets() -> None:
         "UI_ENABLED",
         "UI_HOST",
         "UI_PORT",
+        "UI_LANG",
     }
     found: set[str] = set()
     for line in text.splitlines():

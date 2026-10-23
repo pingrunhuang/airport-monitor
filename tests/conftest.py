@@ -31,6 +31,7 @@ ENV_KEYS = (
     "UI_ENABLED",
     "UI_HOST",
     "UI_PORT",
+    "UI_LANG",
 )
 
 

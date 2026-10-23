@@ -16,6 +16,15 @@ from airport_monitor.models import BoundingBox
 
 MIN_POLL_INTERVAL_SECONDS = 10.0
 
+_UI_LANGS = {
+    "en": "en",
+    "en-us": "en",
+    "en-gb": "en",
+    "zh": "zh",
+    "zh-cn": "zh",
+    "zh-hans": "zh",
+}
+
 _OPTIONAL_STRINGS = (
     "opensky_client_id",
     "opensky_client_secret",
@@ -46,6 +55,24 @@ def validate_poll_interval(seconds: float, *, allow_fast: bool) -> float:
             "time resolution (set OPENSKY_ALLOW_FAST_POLL=1 only for tests)"
         )
     return seconds
+
+
+def normalize_ui_lang(value: object) -> str:
+    """Return ``en`` or ``zh``. A blank value is ``zh``.
+
+    ``zh-CN`` and ``en-US`` are accepted so ``UI_LANG`` and a ``?lang=``
+    tag share one parser. Anything else is an error.
+    """
+
+    if not isinstance(value, str):
+        raise ValueError("UI_LANG must be en or zh")
+    key = value.strip().lower().replace("_", "-")
+    if not key:
+        return "zh"
+    try:
+        return _UI_LANGS[key]
+    except KeyError:
+        raise ValueError("UI_LANG must be en or zh") from None
 
 
 class Settings(BaseSettings):
@@ -89,6 +116,7 @@ class Settings(BaseSettings):
     ui_enabled: bool = True
     ui_host: str = "127.0.0.1"
     ui_port: int = 8787
+    ui_lang: str = "zh"
 
     @field_validator(*_OPTIONAL_STRINGS, mode="before")
     @classmethod
@@ -120,6 +148,11 @@ class Settings(BaseSettings):
         if not 1 <= value <= 65535:
             raise ValueError("UI_PORT must be between 1 and 65535")
         return value
+
+    @field_validator("ui_lang", mode="before")
+    @classmethod
+    def _ui_lang(cls, value: object) -> str:
+        return normalize_ui_lang(value)
 
     @field_validator("log_level")
     @classmethod

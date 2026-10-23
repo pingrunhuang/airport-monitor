@@ -105,6 +105,10 @@ enabled, `--once` still polls a single cycle and then keeps the page up
 until Ctrl-C, so you can inspect that snapshot. With `UI_ENABLED=0`,
 `--once` exits after the poll as before.
 
+The board defaults to 简体中文. The header toggle or `?lang=en` switches to
+English and stores the choice in localStorage; `UI_LANG=en` changes the
+initial default.
+
 The board is one research-style page, in the spirit of an OpenSky table
 rather than a consumer flight tracker. Nothing on it is an OpenSky logo.
 
@@ -143,6 +147,7 @@ at a public interface unless something else is in front of it.
 | `UI_ENABLED` | `1` | `0` does not start the page |
 | `UI_HOST` | `127.0.0.1` | Bind address |
 | `UI_PORT` | `8787` | Bind port |
+| `UI_LANG` | `zh` | Initial language when nothing is stored: `zh` (简体中文) or `en` |
 
 ## Alerts
 
@@ -262,6 +267,7 @@ Empty values count as unset.
 | `UI_ENABLED` | `1` | `0` skips the local board |
 | `UI_HOST` | `127.0.0.1` | Board bind address |
 | `UI_PORT` | `8787` | Board port. Open `http://127.0.0.1:8787` |
+| `UI_LANG` | `zh` | Initial board language: `zh` (简体中文) or `en` |
 
 `--interval` overrides `POLL_INTERVAL_SECONDS` for one process.
 
