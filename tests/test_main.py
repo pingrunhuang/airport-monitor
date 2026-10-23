@@ -111,6 +111,7 @@ def test_once_starts_the_board_before_the_poll_and_keeps_it_up(
     assert started["host"] == "127.0.0.1"
     assert started["port"] == 8799
     assert started["refresh_seconds"] == 10
+    assert started["default_lang"] == "zh"
 
 
 def test_ui_bind_failure_still_polls_once_and_exits(

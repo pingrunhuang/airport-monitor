@@ -154,6 +154,7 @@ def _start_ui(
             host=settings.ui_host,
             port=settings.ui_port,
             refresh_seconds=ui_refresh_seconds(interval),
+            default_lang=settings.ui_lang,
         )
     except OSError as exc:
         logger.error(

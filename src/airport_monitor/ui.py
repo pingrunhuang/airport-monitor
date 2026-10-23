@@ -2,7 +2,9 @@
 
 Stdlib ``ThreadingHTTPServer`` only. The server runs on a daemon thread so
 the poll loop stays on the main thread. Bind address and port come from
-``UI_HOST`` and ``UI_PORT``.
+``UI_HOST`` and ``UI_PORT``. ``UI_LANG`` (``zh`` or ``en``) is the initial
+language when the browser has no ``?lang=`` and no saved choice. The page
+is authored in zh-CN and can switch to English in the browser.
 """
 
 from __future__ import annotations
@@ -16,9 +18,12 @@ from urllib.parse import parse_qs, urlparse
 
 from loguru import logger
 
+from airport_monitor.config import normalize_ui_lang
 from airport_monitor.live import LiveBoard
 
 _PAGE_CACHE: bytes | None = None
+_HTML_ZH = b'<html lang="zh-CN" data-default-lang="zh-CN">'
+_HTML_EN = b'<html lang="en" data-default-lang="en">'
 
 
 def ui_refresh_seconds(poll_interval_seconds: float) -> float:
@@ -44,6 +49,27 @@ def index_html() -> bytes:
     return _PAGE_CACHE
 
 
+def render_index(default_lang: str = "zh") -> bytes:
+    """HTML for one response. ``zh`` keeps the packaged zh-CN marker; ``en`` flips it."""
+
+    page = index_html()
+    if normalize_ui_lang(default_lang) == "en":
+        return page.replace(_HTML_ZH, _HTML_EN, 1)
+    return page
+
+
+def resolve_ui_lang(raw: str | None, *, default: str) -> str:
+    """Prefer a ``?lang=`` of en or zh. Anything else keeps ``default``."""
+
+    fallback = normalize_ui_lang(default)
+    if raw is None or not raw.strip():
+        return fallback
+    try:
+        return normalize_ui_lang(raw)
+    except ValueError:
+        return fallback
+
+
 class _Server(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -55,11 +81,14 @@ class _BoardHandler(BaseHTTPRequestHandler):
 
     board: LiveBoard
     refresh_seconds: float
+    default_lang: str
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         if parsed.path == "/":
-            body = index_html()
+            raw = parse_qs(parsed.query).get("lang", [None])[0]
+            chosen = resolve_ui_lang(raw, default=self.default_lang)
+            body = render_index(chosen)
             self._send(200, "text/html; charset=utf-8", body)
             return
         if parsed.path == "/api/status":
@@ -87,11 +116,16 @@ class _BoardHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def _handler(board: LiveBoard, refresh_seconds: float) -> type[BaseHTTPRequestHandler]:
+def _handler(
+    board: LiveBoard,
+    refresh_seconds: float,
+    default_lang: str,
+) -> type[BaseHTTPRequestHandler]:
     class Handler(_BoardHandler):
         def __init__(self, *args: object, **kwargs: object) -> None:
             self.board = board
             self.refresh_seconds = refresh_seconds
+            self.default_lang = default_lang
             super().__init__(*args, **kwargs)  # type: ignore[arg-type]
 
     return Handler
@@ -103,12 +137,14 @@ def serve_ui(
     host: str,
     port: int,
     refresh_seconds: float,
+    default_lang: str = "zh",
 ) -> _Server:
     """Bind and serve on a daemon thread. Return the server so the caller can stop it."""
 
     if refresh_seconds <= 0 or not math.isfinite(refresh_seconds):
         raise ValueError("refresh_seconds must be positive")
-    server = _Server((host, port), _handler(board, refresh_seconds))
+    lang = normalize_ui_lang(default_lang)
+    server = _Server((host, port), _handler(board, refresh_seconds, lang))
     thread = threading.Thread(target=server.serve_forever, name="airport-monitor-ui", daemon=True)
     server.ui_thread = thread
     thread.start()
