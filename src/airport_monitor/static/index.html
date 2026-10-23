@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Airport monitor</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect fill='%230B1F33' width='16' height='16'/%3E%3Crect fill='%233B82C4' y='13' width='16' height='3'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --navy: #0B1F33;
+      --ink: #1A2332;
+      --muted: #5C6B7A;
+      --line: #D5DEE7;
+      --paper: #F4F7FA;
+      --sky: #3B82C4;
+      --sky-2: #5BA3D9;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .top { background: var(--navy); color: #E7EEF5; }
+    .top-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 20px 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-end;
+    }
+    .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .icao {
+      margin: 0;
+      font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+      font-size: 22px;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+    .title { font-size: 15px; font-weight: 500; color: #C5D4E4; }
+    .place { margin: 3px 0 0; color: #8FA4B8; font-size: 12px; }
+    .poll { text-align: right; }
+    .live {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #9FB4C8;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--sky-2);
+    }
+    .live-dot.is-live { animation: pulse 2.4s ease-out infinite; }
+    .live-dot.is-stale { background: #C4895A; animation: none; }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(91, 163, 217, 0.55); }
+      100% { box-shadow: 0 0 0 8px rgba(91, 163, 217, 0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .live-dot.is-live { animation: none; }
+    }
+    .poll-line {
+      margin-top: 4px;
+      font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #D5E2EE;
+    }
+    .accent { height: 3px; background: var(--sky); }
+    .banner-wrap { max-width: 1120px; margin: 12px auto 0; padding: 0 20px; }
+    .banner {
+      margin: 0;
+      padding: 8px 12px;
+      background: #F8EFE6;
+      color: #6B3A1F;
+      border: 1px solid #E4D0C0;
+      font-size: 13px;
+    }
+    .stats { background: #fff; border-bottom: 1px solid var(--line); }
+    .stats-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .stat { padding: 10px 16px 9px; border-right: 1px solid #E3EAF1; }
+    .stat:last-child { border-right: 0; }
+    .stat-value {
+      font-variant-numeric: tabular-nums;
+      font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+      font-size: 20px;
+      color: var(--navy);
+    }
+    .stat-air .stat-value { color: var(--sky); }
+    .stat-label {
+      margin-top: 1px;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .stat-note {
+      min-height: 1.1em;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    main { max-width: 1120px; margin: 0 auto; padding: 16px 20px 12px; }
+    .panel { background: #fff; border: 1px solid var(--line); margin-bottom: 14px; }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #F8FAFC;
+    }
+    .panel-head h2 {
+      margin: 0;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #3E4E60;
+    }
+    .panel-head p { margin: 0; font-size: 12px; color: var(--muted); }
+    .table-wrap { overflow-x: auto; }
+    table.board { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.board th {
+      text-align: left;
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      white-space: nowrap;
+    }
+    table.board td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #E6EDF3;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    table.board tbody tr:nth-child(even) { background: #F7FAFC; }
+    table.board tbody tr[data-icao] { cursor: pointer; }
+    table.board tbody tr[data-icao]:hover { background: #E8F3FB; }
+    table.board tbody tr.is-selected,
+    table.board tbody tr.is-selected:hover {
+      background: #D6EAF8;
+      box-shadow: inset 3px 0 0 var(--sky);
+    }
+    table.board td.num, table.board th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .mono { font-family: ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace; }
+    .missing { color: #8A97A3; }
+    .empty { color: var(--muted); font-style: italic; }
+    .chip {
+      display: inline-block;
+      padding: 1px 6px 2px;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      line-height: 1.45;
+    }
+    .chip-on_ground { color: #3E4C59; background: #E6EBF0; border-color: #D0D7DF; }
+    .chip-airborne { color: #0F4C75; background: #E5F2FB; border-color: #5BA3D9; }
+    .chip-pending { color: #6A5424; background: #F4F0E4; border-color: #E0D3B0; }
+    .chip-takeoff { color: #1C5C38; background: #E6F4EC; border-color: #B7DCC6; }
+    .chip-landing { color: #7A3E1D; background: #F8EFE6; border-color: #E4CDB8; }
+    footer {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 2px 20px 28px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    footer p { margin: 0 0 4px; }
+    footer a { color: var(--sky); }
+    .noscript {
+      max-width: 1120px;
+      margin: 12px auto;
+      padding: 0 20px;
+      color: var(--muted);
+    }
+    @media (max-width: 720px) {
+      .top-inner { flex-direction: column; align-items: flex-start; }
+      .poll { text-align: left; }
+      .stats-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .stat { border-bottom: 1px solid #E3EAF1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <div class="top-inner">
+      <div>
+        <div class="brand">
+          <h1 class="icao" id="icao">——</h1>
+          <span class="title">Airport monitor</span>
+        </div>
+        <p class="place" id="place"></p>
+      </div>
+      <div class="poll">
+        <div class="live"><span class="live-dot" id="live-dot"></span><span id="live-label">Idle</span></div>
+        <div class="poll-line" id="poll-line">Waiting for the first poll</div>
+      </div>
+    </div>
+  </header>
+  <div class="accent"></div>
+  <div class="banner-wrap" id="banner-wrap" hidden>
+    <p class="banner" id="banner"></p>
+  </div>
+  <section class="stats" aria-label="Counts">
+    <div class="stats-inner">
+      <div class="stat">
+        <div class="stat-value" id="count-tracked">0</div>
+        <div class="stat-label">Tracked</div>
+        <div class="stat-note" id="note-tracked"></div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="count-ground">0</div>
+        <div class="stat-label">On ground</div>
+        <div class="stat-note"></div>
+      </div>
+      <div class="stat stat-air">
+        <div class="stat-value" id="count-air">0</div>
+        <div class="stat-label">Airborne</div>
+        <div class="stat-note"></div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="count-pending">0</div>
+        <div class="stat-label">Pending</div>
+        <div class="stat-note">Not baselined</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="count-events">0</div>
+        <div class="stat-label">Events today</div>
+        <div class="stat-note" id="note-events">0 since start</div>
+      </div>
+    </div>
+  </section>
+  <main>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Tracks</h2>
+        <p id="track-note">Debounced ground state. Age is time since the track was seen.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="board">
+          <thead>
+            <tr>
+              <th>ICAO24</th>
+              <th>Callsign</th>
+              <th>State</th>
+              <th class="num">Age</th>
+              <th class="num">Lat</th>
+              <th class="num">Lon</th>
+              <th class="num" title="Barometric altitude, metres">Alt m</th>
+              <th class="num" title="Ground speed, metres per second">GS m/s</th>
+            </tr>
+          </thead>
+          <tbody id="track-body">
+            <tr><td class="empty" colspan="8">Waiting for the first poll.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Recent events</h2>
+        <p>Newest first. Last 50 takeoffs and landings since this process started.</p>
+      </div>
+      <div class="table-wrap">
+        <table class="board">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Event</th>
+              <th>ICAO24</th>
+              <th>Callsign</th>
+            </tr>
+          </thead>
+          <tbody id="event-body">
+            <tr><td class="empty" colspan="4">No takeoff or landing yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <p id="started"></p>
+    <p>Data from <a href="https://opensky-network.org/">OpenSky Network</a>. Not an air traffic control feed.</p>
+  </footer>
+  <noscript><p class="noscript">This board needs JavaScript to load tracks from /api/status.</p></noscript>
+  <script>
+    (function () {
+      var selected = null;
+      var timer = null;
+      var STATE_ORDER = { airborne: 0, pending: 1, on_ground: 2 };
+      var STATE_LABEL = { on_ground: "On ground", airborne: "Airborne", pending: "Pending" };
+      var EVENT_LABEL = { takeoff: "Takeoff", landing: "Landing" };
+
+      function $(id) { return document.getElementById(id); }
+      function text(id, value) {
+        var node = $(id);
+        if (node) node.textContent = value;
+      }
+      function dash() { return "\u2014"; }
+      function pad(value) { return String(value).padStart(2, "0"); }
+
+      function formatAge(seconds) {
+        if (seconds == null || !isFinite(seconds)) return dash();
+        var whole = Math.max(0, Math.round(seconds));
+        if (whole < 60) return whole + "s";
+        var minutes = Math.floor(whole / 60);
+        var rem = whole % 60;
+        if (minutes < 60) return minutes + "m " + rem + "s";
+        var hours = Math.floor(minutes / 60);
+        return hours + "h " + (minutes % 60) + "m";
+      }
+
+      function formatFixed(value, digits) {
+        if (value == null || value === "" || !isFinite(Number(value))) return null;
+        return Number(value).toFixed(digits);
+      }
+
+      function formatClock(unix) {
+        var date = new Date(unix * 1000);
+        return pad(date.getHours()) + ":" + pad(date.getMinutes()) + ":" + pad(date.getSeconds());
+      }
+
+      function formatEventTime(unix) {
+        var date = new Date(unix * 1000);
+        var now = new Date();
+        var clock = formatClock(unix);
+        var same = date.getFullYear() === now.getFullYear()
+          && date.getMonth() === now.getMonth()
+          && date.getDate() === now.getDate();
+        if (same) return clock;
+        return pad(date.getMonth() + 1) + "-" + pad(date.getDate()) + " " + clock;
+      }
+
+      function cell(value, className) {
+        var node = document.createElement("td");
+        if (className) node.className = className;
+        if (value == null || value === "") {
+          node.classList.add("missing");
+          node.textContent = dash();
+        } else {
+          node.textContent = value;
+        }
+        return node;
+      }
+
+      function chip(kind, label) {
+        var node = document.createElement("span");
+        node.className = "chip chip-" + kind;
+        node.textContent = label;
+        return node;
+      }
+
+      function setBanner(message) {
+        var wrap = $("banner-wrap");
+        if (!message) {
+          wrap.hidden = true;
+          text("banner", "");
+          return;
+        }
+        text("banner", message);
+        wrap.hidden = false;
+      }
+
+      function renderTracks(tracks) {
+        var body = $("track-body");
+        body.replaceChildren();
+        if (!tracks.length) {
+          var empty = document.createElement("tr");
+          var td = document.createElement("td");
+          td.colSpan = 8;
+          td.className = "empty";
+          td.textContent = "No aircraft tracked.";
+          empty.appendChild(td);
+          body.appendChild(empty);
+          return;
+        }
+        tracks.forEach(function (track) {
+          var row = document.createElement("tr");
+          row.dataset.icao = track.icao24;
+          if (track.icao24 === selected) row.classList.add("is-selected");
+          row.appendChild(cell(track.icao24, "mono"));
+          row.appendChild(cell(track.callsign, "mono"));
+          var stateCell = document.createElement("td");
+          var kind = track.state || "pending";
+          stateCell.appendChild(chip(kind, STATE_LABEL[kind] || kind));
+          row.appendChild(stateCell);
+          row.appendChild(cell(formatAge(track.last_seen_age), "num mono"));
+          row.appendChild(cell(formatFixed(track.latitude, 4), "num mono"));
+          row.appendChild(cell(formatFixed(track.longitude, 4), "num mono"));
+          row.appendChild(cell(formatFixed(track.baro_altitude, 0), "num mono"));
+          row.appendChild(cell(formatFixed(track.velocity, 1), "num mono"));
+          row.addEventListener("click", function () {
+            selected = selected === track.icao24 ? null : track.icao24;
+            renderTracks(tracks);
+          });
+          body.appendChild(row);
+        });
+      }
+
+      function renderEvents(events) {
+        var body = $("event-body");
+        body.replaceChildren();
+        if (!events.length) {
+          var empty = document.createElement("tr");
+          var td = document.createElement("td");
+          td.colSpan = 4;
+          td.className = "empty";
+          td.textContent = "No takeoff or landing yet.";
+          empty.appendChild(td);
+          body.appendChild(empty);
+          return;
+        }
+        events.forEach(function (event) {
+          var row = document.createElement("tr");
+          var time = cell(formatEventTime(event.ts), "mono");
+          if (event.ts != null) {
+            time.title = new Date(event.ts * 1000).toLocaleString() + " \u00b7 unix " + event.ts;
+          }
+          row.appendChild(time);
+          var kindCell = document.createElement("td");
+          var kind = event.event || "";
+          kindCell.appendChild(chip(kind, EVENT_LABEL[kind] || kind));
+          row.appendChild(kindCell);
+          row.appendChild(cell(event.icao24, "mono"));
+          row.appendChild(cell(event.callsign, "mono"));
+          body.appendChild(row);
+        });
+      }
+
+      function render(data) {
+        var counts = data.counts || {};
+        var code = data.airport || dash();
+        text("icao", code);
+        text("place", data.name || "");
+        document.title = (data.airport || "Airport") + " \u00b7 Airport monitor";
+        text("count-tracked", String(counts.tracked || 0));
+        text("count-ground", String(counts.on_ground || 0));
+        text("count-air", String(counts.airborne || 0));
+        text("count-pending", String(counts.pending || 0));
+        text("count-events", String(counts.events_today || 0));
+        text("note-events", String(counts.events_since_start || 0) + " since start");
+        var trackedNote = "";
+        if (data.poll_time != null && data.aircraft_count !== counts.tracked) {
+          trackedNote = String(data.aircraft_count) + " in the last poll";
+        }
+        text("note-tracked", trackedNote);
+
+        var poll = "Waiting for the first poll";
+        if (data.poll_time != null) {
+          poll = "OpenSky " + formatClock(data.poll_time);
+          if (data.polled_at != null) {
+            poll += " \u00b7 " + formatAge(Date.now() / 1000 - data.polled_at) + " ago";
+          }
+          if (data.credits_remaining != null) {
+            poll += " \u00b7 credits " + data.credits_remaining;
+          }
+        }
+        var pollNode = $("poll-line");
+        pollNode.textContent = poll;
+        if (data.poll_time != null) {
+          pollNode.title = "OpenSky unix " + data.poll_time;
+        }
+
+        var dot = $("live-dot");
+        dot.classList.remove("is-live", "is-stale");
+        if (data.last_error) {
+          dot.classList.add("is-stale");
+          text("live-label", "Stale");
+          setBanner("Last poll failed: " + data.last_error);
+        } else if (data.poll_time == null) {
+          text("live-label", "Idle");
+          setBanner("");
+        } else {
+          dot.classList.add("is-live");
+          text("live-label", "Live");
+          setBanner("");
+        }
+
+        if (data.started_at) {
+          text("started", "This process started " + new Date(data.started_at * 1000).toLocaleString() + ".");
+        }
+        var seconds = Number(data.refresh_seconds);
+        if (isFinite(seconds) && seconds > 0) {
+          text("track-note", "Debounced ground state. This page refetches every " + seconds + "s.");
+        }
+
+        var tracks = Array.isArray(data.tracks) ? data.tracks.slice() : [];
+        tracks.sort(function (a, b) {
+          var order = (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9);
+          if (order) return order;
+          var call = String(a.callsign || "").localeCompare(String(b.callsign || ""));
+          if (call) return call;
+          return String(a.icao24).localeCompare(String(b.icao24));
+        });
+        renderTracks(tracks);
+        renderEvents(Array.isArray(data.events) ? data.events : []);
+      }
+
+      function schedule(seconds) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(tick, Math.max(1, seconds) * 1000);
+      }
+
+      function tick() {
+        fetch("/api/status", { cache: "no-store" })
+          .then(function (response) {
+            if (!response.ok) throw new Error("status " + response.status);
+            return response.json();
+          })
+          .then(function (data) {
+            render(data);
+            var seconds = Number(data.refresh_seconds);
+            schedule(isFinite(seconds) && seconds > 0 ? seconds : 5);
+          })
+          .catch(function () {
+            var dot = $("live-dot");
+            dot.classList.remove("is-live");
+            dot.classList.add("is-stale");
+            text("live-label", "Stale");
+            setBanner("The board could not refresh. Retrying.");
+            schedule(5);
+          });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", tick);
+      } else {
+        tick();
+      }
+    })();
+  </script>
+</body>
+</html>

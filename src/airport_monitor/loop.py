@@ -17,6 +17,7 @@ from loguru import logger
 from airport_monitor.airports import Airport
 from airport_monitor.alert import AlertDispatcher
 from airport_monitor.ingest import OpenSkyError, OpenSkyRateLimitError
+from airport_monitor.live import LiveBoard
 from airport_monitor.models import AlertEvent, BoundingBox, Snapshot
 from airport_monitor.state_machine import GroundStateTracker
 
@@ -35,12 +36,17 @@ def run_monitor(
     sleep: Callable[[float], None] = time.sleep,
     clock: Callable[[], float] = time.time,
     max_cycles: int | None = None,
+    board: LiveBoard | None = None,
 ) -> int:
     """Poll until interrupted. Return how many cycles ran.
 
     ``max_cycles`` stops after N cycles and does not sleep after the last
     one, which is what ``--once`` uses. A rate-limit sleep still happens
     between cycles when more cycles remain.
+
+    ``board``, when set, receives each successful poll and any events after
+    the alert sinks run. A failed poll records an error and leaves the
+    previous tracks in place. ``None`` keeps the alert path unchanged.
     """
 
     if max_cycles is not None and max_cycles < 1:
@@ -55,6 +61,7 @@ def run_monitor(
             dispatcher=dispatcher,
             poll_interval_seconds=poll_interval_seconds,
             clock=clock,
+            board=board,
         )
         cycles += 1
         if max_cycles is not None and cycles >= max_cycles:
@@ -71,6 +78,7 @@ def _poll_once(
     dispatcher: AlertDispatcher,
     poll_interval_seconds: float,
     clock: Callable[[], float],
+    board: LiveBoard | None = None,
 ) -> float | None:
     """Poll every airport. Return a backoff in seconds when rate limited."""
 
@@ -84,9 +92,13 @@ def _poll_once(
                 airport.icao,
                 wait,
             )
+            if board is not None:
+                board.record_failure(airport.icao, "OpenSky rate limit")
             return wait
         except OpenSkyError as exc:
             logger.error("OpenSky request failed for {}: {}", airport.icao, exc)
+            if board is not None:
+                board.record_failure(airport.icao, str(exc))
             continue
 
         now = clock()
@@ -111,4 +123,7 @@ def _poll_once(
         for event in events:
             logger.info("event {}", event.to_payload())
             dispatcher.emit(event)
+        if board is not None:
+            board.record_poll(airport.icao, snapshot, tracker, now=now, name=airport.name)
+            board.record_events(airport.icao, events)
     return None

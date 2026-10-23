@@ -114,6 +114,34 @@ class GroundStateTracker:
             del self._tracks[icao]
         return len(stale)
 
+    def snapshot(self, *, now: float | None = None) -> list[dict[str, object]]:
+        """Plain copies of the current tracks, sorted by icao24.
+
+        Each dict is detached from its ``_Track``. Changing the dict does
+        not change the detector, and a later ``observe`` or ``expire`` does
+        not change a dict that was already returned. ``state`` is
+        ``on_ground``, ``airborne``, or ``pending`` (baseline not committed).
+        ``last_seen_age`` is seconds when ``now`` is passed, otherwise null.
+        """
+
+        rows: list[dict[str, object]] = []
+        for icao24, track in self._tracks.items():
+            age: float | None = None
+            if now is not None:
+                age = max(0.0, float(now) - track.last_seen)
+            rows.append(
+                {
+                    "icao24": icao24,
+                    "callsign": track.callsign,
+                    "state": _public_state(track),
+                    "last_seen": track.last_seen,
+                    "last_seen_age": age,
+                    "last_sample_ts": track.last_sample_ts,
+                }
+            )
+        rows.sort(key=lambda row: str(row["icao24"]))
+        return rows
+
     def _log_state(self, sample: AircraftSample, track: _Track) -> None:
         logger.debug(
             "{} {} on_ground={} confirmed={} pending={} count={}",
@@ -137,6 +165,14 @@ def _accumulate(track: _Track, on_ground: bool) -> None:
 def _clear_pending(track: _Track) -> None:
     track.pending = None
     track.pending_count = 0
+
+
+def _public_state(track: _Track) -> str:
+    if track.confirmed is True:
+        return "on_ground"
+    if track.confirmed is False:
+        return "airborne"
+    return "pending"
 
 
 def _edge_kind(previous: bool, on_ground: bool) -> EventKind | None:

@@ -174,6 +174,34 @@ def test_stale_duplicate_still_refreshes_ttl() -> None:
     assert tracker.expire(119.01) == 1
 
 
+def test_snapshot_is_a_detached_copy() -> None:
+    tracker = GroundStateTracker("ZGSZ", debounce_samples=2)
+    tracker.observe(sample(True, 10, callsign="CSZ1"), seen_at=10.0)
+    tracker.observe(sample(False, 20, icao="780def", callsign=None), seen_at=14.0)
+    rows = tracker.snapshot(now=16.0)
+    assert [row["icao24"] for row in rows] == ["780abc", "780def"]
+    assert rows[0]["state"] == "pending"
+    assert rows[0]["callsign"] == "CSZ1"
+    assert rows[0]["last_seen"] == 10.0
+    assert rows[0]["last_seen_age"] == 6.0
+    assert rows[0]["last_sample_ts"] == 10
+    assert rows[1]["callsign"] is None
+    assert rows[1]["state"] == "pending"
+    rows[0]["callsign"] = "MUTATED"
+    rows.append({"icao24": "zzzzzz"})
+    again = tracker.snapshot(now=16.0)
+    assert again[0]["callsign"] == "CSZ1"
+    assert len(again) == 2
+    assert all(not hasattr(value, "confirmed") for row in again for value in row.values())
+    tracker.observe(sample(True, 30), seen_at=30.0)
+    confirmed = tracker.snapshot()
+    assert confirmed[0]["state"] == "on_ground"
+    assert confirmed[0]["last_seen_age"] is None
+    air = GroundStateTracker("ZGSZ", debounce_samples=1)
+    air.observe(sample(False, 40), seen_at=40.0)
+    assert air.snapshot()[0]["state"] == "airborne"
+
+
 def test_debounce_below_one_is_rejected() -> None:
     with pytest.raises(ValueError):
         GroundStateTracker("ZGSZ", debounce_samples=0)

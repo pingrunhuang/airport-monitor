@@ -28,6 +28,9 @@ ENV_KEYS = (
     "SMTP_FROM",
     "SMTP_USE_TLS",
     "LOG_LEVEL",
+    "UI_ENABLED",
+    "UI_HOST",
+    "UI_PORT",
 )
 
 

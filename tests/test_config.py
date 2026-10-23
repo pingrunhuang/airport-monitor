@@ -50,6 +50,24 @@ def test_smtp_tls_flag(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None
     assert Settings(_env_file=None).smtp_use_tls is False
 
 
+def test_ui_defaults_and_can_be_disabled(clean_env: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = Settings(_env_file=None)
+    assert settings.ui_enabled is True
+    assert settings.ui_host == "127.0.0.1"
+    assert settings.ui_port == 8787
+    monkeypatch.setenv("UI_ENABLED", "0")
+    monkeypatch.setenv("UI_HOST", "0.0.0.0")
+    monkeypatch.setenv("UI_PORT", "9001")
+    disabled = Settings(_env_file=None)
+    assert disabled.ui_enabled is False
+    assert disabled.ui_host == "0.0.0.0"
+    assert disabled.ui_port == 9001
+    with pytest.raises(ValidationError, match="UI_PORT"):
+        Settings(_env_file=None, ui_port=0)
+    with pytest.raises(ValidationError, match="UI_HOST"):
+        Settings(_env_file=None, ui_host=" ")
+
+
 def test_env_example_has_placeholders_and_no_secrets() -> None:
     text = Path(".env.example").read_text()
     assert "BEGIN PRIVATE" not in text
@@ -70,6 +88,9 @@ def test_env_example_has_placeholders_and_no_secrets() -> None:
         "SMTP_FROM",
         "OPENSKY_CLIENT_ID",
         "OPENSKY_CLIENT_SECRET",
+        "UI_ENABLED",
+        "UI_HOST",
+        "UI_PORT",
     }
     found: set[str] = set()
     for line in text.splitlines():
